@@ -1,0 +1,409 @@
+module clock(Model,reset,choose,change,turn,clk,clk_lk,LD_h,LD_m,hour_t,hour_s,minute_t,minute_s,second_t,second_s,alarm,alarm_set);
+input Model,reset,choose,change,turn,clk,clk_lk,alarm_set;
+output LD_h,LD_m,hour_t,hour_s,minute_t,minute_s,second_t,second_s,alarm;
+wire[3:0] hour_t_x,hour_s_x,minute_t_x,minute_s_x,second_t_x,second_s_x,hour_t_y,hour_s_y,minute_t_y,minute_s_y,hour_t_z,hour_s_z,minute_t_z,minute_s_z;
+wire[3:0] hour_t,hour_s,minute_t,minute_s,second_t,second_s;
+wire alarm_x,alarm_z;
+
+
+
+timing timer(Model,reset,clk,hour_t_y,hour_s_y,minute_t_y,minute_s_y,hour_t_x,hour_s_x,minute_t_x,minute_s_x,second_t_x,second_s_x,alarm_x);
+change change_ex(Model,clk,clk_lk,choose,change,turn,LD_h_y,LD_m_y,hour_t_x,hour_s_x,minute_t_x,minute_s_x,hour_t_y,hour_s_y,minute_t_y,minute_s_y);
+alarm_clock alarm_clock_ex(alarm_set,alarm_z,hour_t_x,hour_s_x,minute_t_x,minute_s_x,hour_t_z,hour_s_z,minute_t_z,minute_s_z,second_t_x,second_s_x
+,clk,clk_lk,change,turn,LD_h_z,LD_m_z);
+
+
+
+assign hour_t=alarm_set?(hour_t_z):(Model?hour_t_x:hour_t_y);
+assign minute_t=alarm_set?(minute_t_z):(Model?minute_t_x:minute_t_y);
+assign second_t=alarm_set?0:second_t_x;
+assign hour_s=alarm_set?(hour_s_z):(Model?hour_s_x:hour_s_y);
+assign minute_s=alarm_set?(minute_s_z):(Model?minute_s_x:minute_s_y);
+assign second_s=alarm_set?0:second_s_x;
+assign alarm=alarm_x||alarm_z;
+assign LD_h=LD_h_y||LD_h_z;
+assign LD_m=LD_m_y||LD_m_z;
+
+
+
+endmodule
+
+
+module timing(Model,reset,clk,hour_t_x_i,hour_s_x_i,minute_t_x_i,minute_s_x_i,hour_t_x_o,hour_s_x_o,minute_t_x_o,minute_s_x_o,second_t_x_o,second_s_x_o,alarm);
+input reset,clk,Model;
+output alarm;
+reg alarm;
+input[3:0] hour_t_x_i,hour_s_x_i,minute_t_x_i,minute_s_x_i;
+output[3:0] hour_t_x_o,minute_t_x_o,second_t_x_o,hour_s_x_o,minute_s_x_o,second_s_x_o;
+reg[3:0] hour_t_x_o,minute_t_x_o,second_t_x_o,hour_s_x_o,minute_s_x_o,second_s_x_o;
+wire cout_s,cout_m;
+
+
+initial
+begin
+hour_t_x_o<=0;
+minute_t_x_o<=0;
+second_t_x_o<=0;
+hour_s_x_o<=0;
+minute_s_x_o<=0;
+second_s_x_o<=0;
+end
+
+
+always @(posedge clk)
+begin
+	if(!reset) second_s_x_o<=0;  
+  else if(second_s_x_o==9)  
+    second_s_x_o<=0;  
+  else  
+    second_s_x_o<=second_s_x_o+1;  
+end  
+
+always @(posedge clk)  
+begin  
+  if(!reset) second_t_x_o<=0;  
+  else if(second_s_x_o==9)  
+    begin  
+      if(second_t_x_o==5)  
+        second_t_x_o<=0;  
+      else  
+        second_t_x_o<=second_t_x_o+1;  
+    end  
+end  
+
+assign cout_s=((second_t_x_o==5)&&(second_s_x_o==9))?1:0;  
+
+always @(posedge clk)  
+begin  
+  if(!reset)  
+        minute_s_x_o <= 0;  
+  else if(cout_s)  
+    begin  
+     if(minute_s_x_o==9)  
+        minute_s_x_o<= 0;  
+     else 
+        minute_s_x_o<=minute_s_x_o+1; 
+     
+    end 
+    else  if(!Model)
+		minute_s_x_o<=minute_s_x_i;
+end  
+
+always @(posedge clk)  
+begin  
+  if(!reset)  
+    minute_t_x_o<= 0;  
+  else if(cout_s)  
+    begin  
+    if(minute_s_x_o==9)  
+      begin  
+      if(minute_t_x_o==5)  
+        minute_t_x_o <= 0;  
+      else 
+        minute_t_x_o<= minute_t_x_o+1; 
+      end  
+    end 
+    else if (!Model) 
+		minute_t_x_o<=minute_t_x_i; 
+end  
+
+assign cout_m = ((minute_t_x_o==5)&&(minute_s_x_o==9))?1:0; 
+
+always @(posedge clk)  
+begin  
+  if(!reset)  
+        hour_s_x_o <= 0;  
+  else if(cout_m&&cout_s)  
+  begin  
+    if((hour_s_x_o==3)&&(hour_t_x_o==2))   
+      hour_s_x_o<=0;  
+    else
+       if(hour_s_x_o==9)  
+        hour_s_x_o <=0;  
+       else  
+        hour_s_x_o <= hour_s_x_o + 1; 
+  end 
+  else if(!Model)
+	hour_s_x_o<=hour_s_x_i;
+end  
+
+always @(posedge clk)  
+begin  
+
+  if(!reset)  
+        hour_t_x_o <= 0;  
+  else if(cout_m&&cout_s)  
+  begin  
+      if((hour_s_x_o==3)&&(hour_t_x_o==2))  
+        hour_t_x_o <= 0;  
+      else if(hour_s_x_o==9)  
+        hour_t_x_o<=hour_t_x_o+1;  
+  end  
+  else if(!Model)
+	hour_t_x_o<=hour_t_x_i;
+end  
+
+always @(posedge clk)  
+      begin  
+        if(!reset)   
+        begin  
+			alarm<=0;
+		end
+		
+		else
+		begin
+			if(minute_t_x_o==5&&minute_s_x_o==9&&second_t_x_o==5&&(second_s_x_o==7||second_s_x_o==8||second_s_x_o==9)&&
+			   (!(hour_t_x_o==0&&(hour_s_x_o==0||hour_s_x_o==1||hour_s_x_o==2||hour_s_x_o==3||hour_s_x_o==4)||hour_t_x_o==2&&(hour_s_x_o==3||hour_s_x_o==2)))
+			&&Model)
+			alarm<=1;
+			else
+			alarm<=0;
+		end
+	end
+endmodule
+
+
+
+
+//===================================================================================================================================================
+
+module change(Model,clk,clk_lk,choose,change,turn,LD_h,LD_m,hour_t_y_i,hour_s_y_i,minute_t_y_i,minute_s_y_i,hour_t_y_o,hour_s_y_o,minute_t_y_o,minute_s_y_o);
+input Model,change,turn,clk,clk_lk,choose;
+output LD_h,LD_m,hour_t_y_o,hour_s_y_o,minute_t_y_o,minute_s_y_o;
+input[3:0] hour_t_y_i,hour_s_y_i,minute_t_y_i,minute_s_y_i;
+reg[3:0] hour_t_y_o,hour_s_y_o,minute_t_y_o,minute_s_y_o;
+reg Model_t,change_t,clk_t;
+
+always @(posedge clk_lk)
+begin
+Model_t<=Model;
+change_t<=change;
+clk_t<=clk;
+end
+
+always @(posedge clk_lk)  
+begin  
+    if(Model_t==1&&Model==0)
+    begin
+		hour_t_y_o<=hour_t_y_i;  
+		hour_s_y_o<=hour_s_y_i; 
+	end
+	else if(Model_t==0&&Model==1);
+	else if(choose)
+	begin
+	if(change_t!=change)
+	begin
+    if(turn)  
+      begin  
+        if((hour_s_y_o==3)&&(hour_t_y_o==2))  
+          begin  
+            hour_t_y_o<=0;  
+            hour_s_y_o<=0;  
+          end  
+        else  
+          if(hour_s_y_o==9)  
+            begin  
+              hour_s_y_o<=0;  
+              hour_t_y_o<=hour_t_y_o+1;  
+            end  
+          else  
+            hour_s_y_o<=hour_s_y_o+1;  
+      end 
+      end 
+    end  
+    else if(!choose)
+    begin
+	if(clk_t!=clk)
+	begin
+    if(turn)  
+      begin  
+        if((hour_s_y_o==3)&&(hour_t_y_o==2))  
+          begin  
+            hour_t_y_o<=0;  
+            hour_s_y_o<=0;  
+          end  
+        else  
+          if(hour_s_y_o==9)  
+            begin  
+              hour_s_y_o<=0;  
+              hour_t_y_o<=hour_t_y_o+1;  
+            end  
+          else  
+            hour_s_y_o<=hour_s_y_o+1;  
+      end 
+      end 
+    end  
+    
+    
+    
+   end   
+always @(posedge clk_lk)  
+    begin  
+     if(Model_t==1&&Model==0)
+     begin
+		minute_s_y_o<=minute_s_y_i;  
+        minute_t_y_o<=minute_t_y_i;
+      end
+      else if(Model_t==0&&Model==1);
+      else if(choose)
+      begin
+      if(change_t!=change)
+      begin
+		if(!turn)  
+        begin  
+          if((minute_s_y_o==9)&&(minute_t_y_o==5))  
+            begin  
+              minute_s_y_o<=0;  
+              minute_t_y_o<=0;  
+            end  
+          else   
+            if(minute_s_y_o==9)  
+              begin  
+                minute_s_y_o<=0;  
+                minute_t_y_o<=minute_t_y_o+1;  
+              end  
+            else  
+              minute_s_y_o<=minute_s_y_o+1;  
+        end  
+        end
+      end  
+      else if(!choose)
+      begin
+      if(clk_t!=clk)
+      begin
+		if(!turn)  
+        begin  
+          if((minute_s_y_o==9)&&(minute_t_y_o==5))  
+            begin  
+              minute_s_y_o<=0;  
+              minute_t_y_o<=0;  
+            end  
+          else   
+            if(minute_s_y_o==9)  
+              begin  
+                minute_s_y_o<=0;  
+                minute_t_y_o<=minute_t_y_o+1;  
+              end  
+            else  
+              minute_s_y_o<=minute_s_y_o+1;  
+        end  
+        end
+      end  
+	end
+assign LD_h=turn&&!Model;
+assign LD_m=!turn&&!Model;
+
+endmodule
+
+//===================================================================================================================================================
+
+module alarm_clock(alarm_set,alarm,hour_t_z_i,hour_s_z_i,minute_t_z_i,minute_s_z_i,hour_t_z_o,hour_s_z_o,minute_t_z_o,minute_s_z_o,second_t_z_i,second_s_z_i
+,clk_lk,change,turn,LD_h,LD_m);
+input alarm_set,change,turn,clk_lk;
+input[3:0] hour_t_z_i,hour_s_z_i,minute_t_z_i,minute_s_z_i,second_t_z_i,second_s_z_i;
+output alarm,hour_t_z_o,hour_s_z_o,minute_t_z_o,minute_s_z_o,LD_h,LD_m;
+reg[3:0] hour_t_z_o,hour_s_z_o,minute_t_z_o,minute_s_z_o;
+reg alarm;
+reg change_t,alarm_set_t;
+
+initial
+begin
+hour_t_z_o<=2;
+minute_t_z_o<=0;
+hour_s_z_o<=3;
+minute_s_z_o<=0;
+end
+
+
+
+always @(posedge clk_lk)
+begin
+change_t<=change;
+alarm_set_t<=alarm_set;
+end
+
+always @(posedge clk_lk)  
+begin  
+    if(alarm_set_t==0&&alarm_set==1)
+    begin
+		hour_t_z_o<=hour_t_z_i;  
+		hour_s_z_o<=hour_s_z_i; 
+	end
+	else if(alarm_set_t==1&&alarm_set==0);
+	else if(change_t!=change)
+	begin
+    if(turn)  
+      begin  
+        if((hour_s_z_o==3)&&(hour_t_z_o==2))  
+          begin  
+            hour_t_z_o<=0;  
+            hour_s_z_o<=0;  
+          end  
+        else  
+          if(hour_s_z_o==9)  
+            begin  
+              hour_s_z_o<=0;  
+              hour_t_z_o<=hour_t_z_o+1;  
+            end  
+          else  
+            hour_s_z_o<=hour_s_z_o+1;  
+      end 
+      end 
+    end  
+      
+always @(posedge clk_lk)  
+    begin  
+     if(alarm_set_t==0&&alarm_set==1)
+     begin
+		minute_s_z_o<=minute_s_z_i;  
+        minute_t_z_o<=minute_t_z_i;
+      end
+      else if(alarm_set_t==1&&alarm_set==0);
+      else if(change_t!=change)
+      begin
+		if(!turn)  
+        begin  
+          if((minute_s_z_o==9)&&(minute_t_z_o==5))  
+            begin  
+              minute_s_z_o<=0;  
+              minute_t_z_o<=0;  
+            end  
+          else   
+            if(minute_s_z_o==9)  
+              begin  
+                minute_s_z_o<=0;  
+                minute_t_z_o<=minute_t_z_o+1;  
+              end  
+            else  
+              minute_s_z_o<=minute_s_z_o+1;  
+        end  
+        end
+      end  
+	  
+	  
+always @(posedge clk_lk)  
+begin
+if(hour_t_z_i==hour_t_z_o&&
+hour_s_z_i==hour_s_z_o&&
+minute_t_z_i==minute_t_z_o&&
+minute_s_z_i==minute_s_z_o&&
+alarm_set==0)
+alarm<=1;
+else
+alarm<=0;
+end
+
+
+assign LD_h=turn&&alarm_set;
+assign LD_m=!turn&&alarm_set;
+
+
+endmodule
+
+
+
+
+
+
+
+
